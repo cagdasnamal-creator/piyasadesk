@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+
+# Calisma aninda uretilen haber/raw/state dosyalari repoya gitmesin.
+data/raw/*
+!data/raw/.gitkeep
+data/store/*
+!data/store/.gitkeep
+data/collector.lock
