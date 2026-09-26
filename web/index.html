@@ -147,7 +147,7 @@
     <input type="text" id="q" placeholder="Hisse kodu — örn. ESCOM" autocomplete="off" list="uni">
     <datalist id="uni"></datalist>
     <button class="primary" id="go">Ara</button>
-    <button id="clear">Tümü</button>
+    <button id="clear" title="Aramayı ve aktif izleme listesini temizleyip tüm haberleri göster">Tüm Haberler</button>
     <button id="refresh" title="Yeniden yükle">↻</button>
   </div>
 
@@ -157,7 +157,7 @@
     <span class="chip on" data-kind="">Tüm kaynaklar</span>
     <span class="chip" data-kind="REGULATORY">Sadece KAP</span>
     <span class="chip" data-kind="MEDIA">Sadece medya</span>
-    <span class="chip" id="routinechip">Rutin KAP: gizli</span>
+    <span class="chip" id="routinechip" title="Rutin/teknik KAP bildirimlerini akışta göster veya gizle">Rutin KAP’ları göster</span>
     <span class="chip" id="autochip">Otomatik yenile: kapalı</span>
   </div>
 
@@ -270,6 +270,7 @@ function renderTabs(){
     t.onclick = () => {
       activeList = t.dataset.list;
       $("#q").value = "";           // liste sekmesi tek-sembol aramasını geçersiz kılar
+      setSearchMode("");
       renderTabs(); loadNews();
     };
     if(t.dataset.list){
@@ -370,18 +371,34 @@ async function loadNews(){
       localStorage.setItem("hhm_pending_seen", newestTs);
     }
     document.querySelectorAll(".tick").forEach(el =>
-      el.onclick = () => { $("#q").value = el.dataset.t; loadNews(); });
+      el.onclick = () => { $("#q").value = el.dataset.t; setSearchMode("search"); loadNews(); });
   }catch(e){
     $("#list").innerHTML = `<div class="empty err">API'ye ulaşılamadı.</div>`;
   }
 }
 
+function setSearchMode(mode){
+  const go = $("#go");
+  const clear = $("#clear");
+  go.classList.toggle("primary", mode === "search");
+  clear.classList.toggle("primary", mode === "all");
+}
+
 function refreshAll(){ loadHealth(); loadNews(); }
 
-$("#go").onclick = loadNews;
-$("#clear").onclick = () => { $("#q").value=""; loadNews(); };
+$("#go").onclick = () => {
+  setSearchMode("search");
+  loadNews();
+};
+$("#clear").onclick = () => {
+  setSearchMode("all");
+  $("#q").value = "";
+  activeList = "";
+  renderTabs();
+  loadNews();
+};
 $("#refresh").onclick = refreshAll;
-$("#q").addEventListener("keydown", e => { if(e.key==="Enter") loadNews(); });
+$("#q").addEventListener("keydown", e => { if(e.key==="Enter"){ setSearchMode("search"); loadNews(); } });
 
 document.querySelectorAll(".chip[data-kind]").forEach(c => c.onclick = () => {
   document.querySelectorAll(".chip[data-kind]").forEach(x=>x.classList.remove("on"));
@@ -390,7 +407,7 @@ document.querySelectorAll(".chip[data-kind]").forEach(c => c.onclick = () => {
 
 $("#routinechip").onclick = function(){
   hideRoutine = !hideRoutine;
-  this.textContent = hideRoutine ? "Rutin KAP: gizli" : "Rutin KAP: görünür";
+  this.textContent = hideRoutine ? "Rutin KAP’ları göster" : "Rutin KAP’ları gizle";
   this.classList.toggle("on", !hideRoutine);
   loadNews();
 };
