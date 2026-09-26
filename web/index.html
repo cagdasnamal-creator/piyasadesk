@@ -170,10 +170,9 @@
   </header>
 
   <div class="searchbar">
-    <input type="text" id="q" placeholder="Hisse kodu — örn. ESCOM" autocomplete="off" list="uni">
+    <input type="text" id="q" placeholder="Hisse kodu — örn. TUPRS" autocomplete="off" list="uni">
     <datalist id="uni"></datalist>
     <button class="primary" id="go">Ara</button>
-    <button id="clear" title="Aramayı ve aktif izleme listesini temizleyip tüm haberleri göster">Tüm Haberler</button>
     <button id="refresh" title="Yeniden yükle">↻</button>
   </div>
 
@@ -236,9 +235,9 @@
 <dialog id="dlg">
   <h3 id="dlgTitle">Yeni izleme listesi</h3>
   <label for="dlgName">Liste adı</label>
-  <input type="text" id="dlgName" placeholder="örn. BOLT" maxlength="24">
+  <input type="text" id="dlgName" placeholder="örn. Portföyüm" maxlength="24">
   <label for="dlgTickers">Hisse kodları (virgül veya satır ile ayır)</label>
-  <textarea id="dlgTickers" placeholder="ESCOM, ARDYZ, GARAN"></textarea>
+  <textarea id="dlgTickers" placeholder="TUPRS, ASELS, BIMAS"></textarea>
   <div class="dlg-err" id="dlgErr"></div>
   <div class="dlg-actions">
     <button id="dlgDelete" style="margin-right:auto;color:var(--bad)">Listeyi sil</button>
@@ -333,7 +332,7 @@ async function loadWatchlists(){
 
 function renderTabs(){
   const names = Object.keys(watchlists);
-  let html = `<span class="tab ${activeList===""?"on":""}" data-list="">Tüm haberler</span>`;
+  let html = `<span class="tab ${activeList===""?"on":""}" data-list="">Tüm Haberler</span>`;
   html += names.map(n =>
     `<span class="tab ${activeList===n?"on":""}" data-list="${esc(n)}">
       ${esc(n)} <span style="opacity:.6">(${watchlists[n].length})</span>
@@ -526,21 +525,12 @@ async function loadNews(){
 
 function setSearchMode(mode){
   const go = $("#go");
-  const clear = $("#clear");
   go.classList.toggle("primary", mode === "search");
-  clear.classList.toggle("primary", mode === "all");
 }
 
 function refreshAll(){ loadHealth(); loadNews(); }
 
 $("#go").onclick = beginTickerSearch;
-$("#clear").onclick = () => {
-  setSearchMode("all");
-  $("#q").value = "";
-  activeList = "";
-  renderTabs();
-  loadNews();
-};
 $("#refresh").onclick = refreshAll;
 $("#q").addEventListener("keydown", e => { if(e.key==="Enter") beginTickerSearch(); });
 
