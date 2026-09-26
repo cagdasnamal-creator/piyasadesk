@@ -178,6 +178,8 @@ let kindFilter = "";
 let autoTimer = null;
 let activeList = "";      // "" = tüm haberler
 let watchlists = {};
+let universeSet = new Set();
+const WATCHLISTS_KEY = "piyasadesk_watchlists_v1";
 let hideRoutine = true;   // KAP rutin bildirimleri varsayılan GİZLİ
 let lastSeen = localStorage.getItem("hhm_last_seen") || "";
 
@@ -222,16 +224,21 @@ async function loadUniverse(){
   try{
     const r = await fetch("/api/universe");
     const d = await r.json();
+    universeSet = new Set(d.tickers || []);
     $("#uni").innerHTML = d.tickers.map(t=>`<option value="${t}">`).join("");
     $("#subtitle").textContent = `${d.count} sembol tanımlı`;
   }catch(e){ $("#subtitle").textContent = ""; }
 }
 
+function persistWatchlists(){
+  localStorage.setItem(WATCHLISTS_KEY, JSON.stringify(watchlists));
+}
+
 async function loadWatchlists(){
   try{
-    const r = await fetch("/api/watchlists");
-    const d = await r.json();
-    watchlists = d.watchlists || {};
+    const raw = localStorage.getItem(WATCHLISTS_KEY);
+    watchlists = raw ? JSON.parse(raw) : {};
+    if(!watchlists || Array.isArray(watchlists) || typeof watchlists !== "object") watchlists = {};
   }catch(e){ watchlists = {}; }
   renderTabs();
 }
@@ -271,29 +278,28 @@ function openDialog(name){
 
 async function saveDialog(){
   const name = $("#dlgName").value.trim();
-  const tickers = $("#dlgTickers").value.split(/[,\s;]+/).map(s=>s.trim().toUpperCase()).filter(Boolean);
+  const tickers = [...new Set($("#dlgTickers").value.split(/[,\s;]+/)
+    .map(s=>s.trim().toUpperCase()).filter(Boolean))];
   if(!name){ $("#dlgErr").textContent = "Liste adı boş olamaz."; return; }
-  try{
-    const r = await fetch("/api/watchlists/"+encodeURIComponent(name), {
-      method:"PUT", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({tickers})
-    });
-    const d = await r.json();
-    if(!r.ok){ $("#dlgErr").textContent = d.detail || "Kaydedilemedi."; return; }
-    const original = $("#dlg").dataset.original;
-    if(original && original !== name){ await fetch("/api/watchlists/"+encodeURIComponent(original), {method:"DELETE"}); }
-    watchlists = d.watchlists; activeList = name;
-    $("#dlg").close(); renderTabs(); loadNews();
-  }catch(e){ $("#dlgErr").textContent = "API'ye ulaşılamadı."; }
+  if(name.length > 24){ $("#dlgErr").textContent = "Liste adı en fazla 24 karakter olabilir."; return; }
+  if(!/^[A-Za-z0-9ÇĞİÖŞÜçğıöşü _-]{1,24}$/.test(name)){ $("#dlgErr").textContent = "Liste adında geçersiz karakter var."; return; }
+  if(tickers.length > 200){ $("#dlgErr").textContent = "Bir listede en fazla 200 sembol olabilir."; return; }
+  const unknown = universeSet.size ? tickers.filter(t => !universeSet.has(t)) : [];
+  if(unknown.length){ $("#dlgErr").textContent = "Sembol evreninde bulunmayan kod(lar): "+unknown.join(", "); return; }
+  const original = $("#dlg").dataset.original;
+  if(original && original !== name) delete watchlists[original];
+  watchlists[name] = tickers;
+  persistWatchlists();
+  activeList = name;
+  $("#dlg").close(); renderTabs(); loadNews();
 }
 
 async function deleteDialog(){
   const name = $("#dlg").dataset.original;
   if(!name) return;
   if(!confirm(`"${name}" listesi silinsin mi?`)) return;
-  const r = await fetch("/api/watchlists/"+encodeURIComponent(name), {method:"DELETE"});
-  const d = await r.json();
-  watchlists = d.watchlists;
+  delete watchlists[name];
+  persistWatchlists();
   if(activeList === name) activeList = "";
   $("#dlg").close(); renderTabs(); loadNews();
 }
@@ -302,7 +308,7 @@ async function loadNews(){
   const t = $("#q").value.trim().toUpperCase();
   const params = new URLSearchParams({limit:"80"});
   if(t) params.set("ticker", t);
-  else if(activeList) params.set("watchlist", activeList);
+  else if(activeList) params.set("tickers", (watchlists[activeList]||[]).join(","));
   if(kindFilter) params.set("source_kind", kindFilter);
   if(hideRoutine) params.set("hide_routine", "true");
   try{

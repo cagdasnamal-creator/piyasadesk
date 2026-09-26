@@ -28,3 +28,10 @@ calistirir; FastAPI/uvicorn ise web process olarak foreground'da kalir.
 
 Bu zipteki `data/universe.txt` dosyasini deploy oncesi kontrol et. Tam BIST
 evreni isteniyorsa gercek evren dosyasini bununla degistir.
+
+## Public watchlist guvenligi
+
+Public web arayuzundeki izleme listeleri sunucuda ortak tutulmaz. Her tarayici
+kendi listelerini `localStorage` alaninda saklar. API'de watchlist CRUD endpoint'i
+yoktur. Baska bir ziyaretci senin listeni goremez veya silemez. Ayni tarayici
+profili kullaniliyorsa localStorage ortak oldugu icin liste gorunur.

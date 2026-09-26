@@ -1,3 +1,5 @@
+# LEGACY/LOCAL helper: public web UI artik watchlistleri burada tutmaz.
+# Web listeleri tarayicinin localStorage alanina ozeldir.
 """
 Izleme listeleri (watchlist).
 

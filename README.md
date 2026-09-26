@@ -132,17 +132,15 @@ liste BOLT, bir liste AEGIS, bir liste genel izleme.
 Kaynak filtreleri (KAP / medya) listelerle birlikte çalışır: örneğin
 "BOLT sekmesi + Sadece KAP" = sadece BOLT hisselerinin resmi bildirimleri.
 
-Listeler `data/watchlists.json` dosyasında tutulur, elle de düzenlenebilir:
-```json
-{"BOLT": ["ESCOM", "ARDYZ"], "AEGIS": ["GARAN", "AKBNK"]}
-```
+Listeler **sunucuda ortak bir dosyada tutulmaz**. Her tarayıcı kendi
+listelerini `localStorage` içinde saklar. Böylece public deploy'da başka bir
+ziyaretçi senin BOLT/AEGIS listeni göremez veya silemez. Aynı kişinin farklı
+cihaz/tarayıcıdaki listeleri de birbirinden bağımsızdır.
 
 `data/universe.txt` varsa, evrende olmayan bir kod **reddedilir** — yazım
-hatasıyla hiçbir zaman eşleşmeyecek bir liste oluşturmanı engeller.
-
-> **Mimari not:** API bu tek dosyaya yazabilir; toplanan veri deposuna
-> (`news.jsonl`, `raw/`) **asla** yazmaz. "Collector veri deposunun tek
-> sahibidir" garantisi bir testle korunur.
+hatasıyla hiçbir zaman eşleşmeyecek bir liste oluşturmanı engeller. Liste
+filtresi API'ye yalnızca ilgili sembolleri `tickers=` parametresiyle yollar;
+API'de watchlist oluşturma/silme endpoint'i yoktur.
 
 ## Dayanıklılık davranışları
 

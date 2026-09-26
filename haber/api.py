@@ -14,13 +14,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from haber import health as health_mod
 from haber import store
-from haber import watchlists as wl
 from haber.contract import CONTRACT_VERSION
 from haber.tickers import load_universe
 
@@ -55,16 +54,19 @@ def api_universe():
 @app.get("/api/news")
 def api_news(
     ticker: Optional[str] = Query(None, description="Hisse kodu, orn. ESCOM"),
-    watchlist: Optional[str] = Query(None, description="Izleme listesi adi"),
+    tickers: Optional[str] = Query(None, description="Virgulle ayrilmis hisse kodlari"),
     limit: int = Query(50, ge=1, le=500),
     source_kind: Optional[str] = Query(None, description="REGULATORY / MEDIA / SOCIAL"),
     match: Optional[str] = Query(None, description="EXACT / INFERRED"),
     hide_routine: bool = Query(False, description="KAP rutin bildirimlerini gizle"),
 ):
-    """Haberleri dondurur. ticker/watchlist verilmezse genel akis.
+    """Haberleri dondurur.
 
-    ticker ve watchlist birlikte verilirse ticker onceliklidir (tek
-    sembol, listeden daha dar bir sorgudur)."""
+    Izleme listeleri SUNUCUDA tutulmaz. Tarayici kendi listesini localStorage'da
+    saklar ve bu uca yalnızca filtrelenecek sembolleri `tickers=` ile yollar.
+    Boylece baska ziyaretciler birbirinin listelerini goremez/silemez.
+    `ticker` verilirse tek-sembol sorgusu olarak `tickers` parametresinden onceliklidir.
+    """
     items = store.read_all()
     applied_tickers = None
 
@@ -72,21 +74,29 @@ def api_news(
         t = ticker.strip().upper()
         applied_tickers = [t]
         items = [i for i in items if t in (i.tickers or ())]
-    elif watchlist:
-        wl_tickers = wl.get_tickers(watchlist)
-        if not wl_tickers:
-            # Liste yok VEYA bos -- sessizce "tum haberler"e dusmek
-            # YANILTICI olurdu (kullanici filtreledigini sanir).
+    elif tickers:
+        universe = load_universe()
+        requested = []
+        for raw in tickers.split(','):
+            t = raw.strip().upper()
+            if not t or t in requested:
+                continue
+            if len(requested) >= 200:
+                break
+            if universe and t not in universe:
+                continue
+            requested.append(t)
+        applied_tickers = requested
+        if not requested:
             return {
                 "contract_version": CONTRACT_VERSION,
-                "query": {"watchlist": watchlist, "limit": limit,
+                "query": {"tickers": tickers, "limit": limit,
                           "source_kind": source_kind, "match": match},
                 "applied_tickers": [],
                 "total_matched": 0, "returned": 0, "items": [],
-                "note": "Liste bulunamadi veya bos.",
+                "note": "Gecerli sembol bulunamadi.",
             }
-        applied_tickers = wl_tickers
-        wanted = set(wl_tickers)
+        wanted = set(requested)
         items = [i for i in items if wanted & set(i.tickers or ())]
 
     if source_kind:
@@ -108,7 +118,7 @@ def api_news(
 
     return {
         "contract_version": CONTRACT_VERSION,
-        "query": {"ticker": ticker, "watchlist": watchlist, "limit": limit,
+        "query": {"ticker": ticker, "tickers": tickers, "limit": limit,
                   "source_kind": source_kind, "match": match,
                   "hide_routine": hide_routine},
         "applied_tickers": applied_tickers,
@@ -119,31 +129,10 @@ def api_news(
 
 
 # ---------------------------------------------------------------------
-# Izleme listeleri.
-# DIKKAT: Bu uclar SADECE data/watchlists.json dosyasina yazar --
-# toplanan veri deposuna (news.jsonl, raw/) ASLA dokunmaz. "Collector
-# veri deposunun tek sahibidir" garantisi korunur (test ile dogrulanir).
+# Izleme listeleri tarayiciya ozeldir (web/localStorage).
+# Sunucuda ortak watchlist CRUD endpoint'i YOKTUR. Bu, public deploy'da
+# ziyaretcilerin birbirinin listelerini gormesini/silmesini engeller.
 # ---------------------------------------------------------------------
-
-@app.get("/api/watchlists")
-def api_watchlists():
-    lists = wl.load_all()
-    return {"count": len(lists), "watchlists": lists}
-
-
-@app.put("/api/watchlists/{name}")
-def api_watchlist_upsert(name: str, tickers: list[str] = Body(..., embed=True)):
-    try:
-        lists = wl.upsert(name, tickers, universe=load_universe())
-    except wl.WatchlistError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"ok": True, "watchlists": lists}
-
-
-@app.delete("/api/watchlists/{name}")
-def api_watchlist_delete(name: str):
-    return {"ok": True, "watchlists": wl.delete(name)}
-
 
 @app.get("/api/stats")
 def api_stats():
