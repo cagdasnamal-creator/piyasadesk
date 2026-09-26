@@ -987,3 +987,43 @@ def test_alias_word_boundary_prevents_substring_false_positive():
     aliases = {"thy": "THYAO"}
     assert extract_tickers_with_aliases("healthy growth beklentisi", uni, aliases) == ()
     assert extract_tickers_with_aliases("THY yolcu sayısını açıkladı", uni, aliases) == ("THYAO",)
+
+
+# =====================================================================
+# BUGSCAN V3 REGRESYONLARI
+# =====================================================================
+
+def test_clip_summary_decodes_double_encoded_entities():
+    assert clip_summary("Antalya&amp;#039;nın haberi") == "Antalya'nın haberi"
+
+
+def test_contract_rejects_non_http_url_scheme():
+    with pytest.raises(ContractViolation):
+        validate(_item(url="javascript:alert(1)"))
+
+
+def test_matcher_risky_aliases_do_not_match_generic_words():
+    from haber.tickers import load_universe, load_company_aliases, extract_tickers_with_aliases
+    uni = load_universe(); aliases = load_company_aliases()
+    assert "SOKM" not in extract_tickers_with_aliases("Şok gelişme: Bakanlık açıkladı", uni, aliases)
+    assert "SAHOL" not in extract_tickers_with_aliases("Sabancı Üniversitesi araştırma yayımladı", uni, aliases)
+    assert "CLEBI" not in extract_tickers_with_aliases("Çelebi ailesi düğünde buluştu", uni, aliases)
+    assert "SOKM" in extract_tickers_with_aliases("Şok Marketler yeni mağaza açtı", uni, aliases)
+
+
+def test_taxonomy_handles_common_turkish_suffixes():
+    from haber.taxonomy import classify, CAT_CONTRACT_TENDER, CAT_FINANCIALS, CAT_DIVIDEND, CAT_INVESTMENT_OPERATION
+    assert classify(_item(title="Şirket ihaleyi kazandı")).category == CAT_CONTRACT_TENDER
+    assert classify(_item(title="Yeni sözleşmeyi imzaladı")).category == CAT_CONTRACT_TENDER
+    assert classify(_item(title="Bilançosunu açıkladı")).category == CAT_FINANCIALS
+    assert classify(_item(title="Temettüyü açıkladı")).category == CAT_DIVIDEND
+    assert classify(_item(title="Yeni fabrikasını açtı")).category == CAT_INVESTMENT_OPERATION
+
+
+def test_health_stale_but_complete_keeps_completeness_healthy():
+    old = (_now() - timedelta(hours=3)).isoformat()
+    state = {"sources": {"KAP": {"last_success_at": old}, "RSS": {"last_success_at": old}}}
+    h = health_mod.overall_health(state, now=_now())
+    assert h["freshness"] == health_mod.DEGRADED
+    assert h["completeness"] == health_mod.HEALTHY
+    assert h["operational"] == health_mod.DEGRADED

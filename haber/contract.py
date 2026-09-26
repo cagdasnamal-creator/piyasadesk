@@ -22,6 +22,7 @@ TELIF SINIRI:
 from __future__ import annotations
 
 import hashlib
+import html
 import re
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -154,6 +155,8 @@ def validate(item: NewsItem) -> None:
         raise ContractViolation("title bos")
     if not item.url or not item.url.strip():
         raise ContractViolation("url bos -- kaynaga geri donulemeyen kayit kabul edilmez")
+    if not re.match(r"^https?://[^/\s]+(?:/|$)", item.url.strip(), flags=re.I):
+        raise ContractViolation("url yalnızca http/https ve geçerli host içermeli")
     if len(item.summary) > MAX_SUMMARY_CHARS:
         raise ContractViolation(
             f"summary {len(item.summary)} karakter > {MAX_SUMMARY_CHARS} "
@@ -170,7 +173,17 @@ def clip_summary(text: Optional[str]) -> str:
     """Ozeti telif sinirinda keser + HTML etiketlerini temizler."""
     if not text:
         return ""
-    clean = re.sub(r"<[^>]+>", " ", text)
+    # Bazı RSS sağlayıcıları entity'leri çift encode eder (örn.
+    # &amp;#039;). En fazla üç tur çözerek kullanıcıya ham entity
+    # metni göstermeyi engelleriz; sabit tur sayısı kötü niyetli
+    # girdilerde sınırsız çözüm döngüsünü de önler.
+    clean = str(text)
+    for _ in range(3):
+        decoded = html.unescape(clean)
+        if decoded == clean:
+            break
+        clean = decoded
+    clean = re.sub(r"<[^>]+>", " ", clean)
     clean = re.sub(r"\s+", " ", clean).strip()
     if len(clean) > MAX_SUMMARY_CHARS:
         clean = clean[: MAX_SUMMARY_CHARS - 1].rstrip() + "…"

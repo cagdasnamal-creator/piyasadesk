@@ -91,15 +91,15 @@ def overall_health(state: dict, now: datetime | None = None,
     total = len(per_source)
     healthy = sum(1 for h in per_source.values() if h["status"] == HEALTHY)
     unhealthy = sum(1 for h in per_source.values() if h["status"] == UNHEALTHY)
+    available = sum(1 for st in sources.values() if _parse_iso(st.get("last_success_at")) is not None)
 
-    # COMPLETENESS: kac kaynak veri katkisi yapabiliyor?
-    # DIKKAT: DEGRADED bir kaynak (orn. bayat ama veri var) HALA katki
-    # yapiyor sayilir -- butunluk ancak kaynak HIC calismadiysa (UNHEALTHY)
-    # kaybolur. "healthy==0 ise UNHEALTHY" demek, tum kaynaklar sadece
-    # bayat oldugunda butunlugu yanlislikla comuş gosterirdi.
-    if unhealthy == 0 and healthy == total:
+    # COMPLETENESS: kaynağın şu anda taze olup olmamasından ayrı olarak,
+    # en az bir kez başarıyla veri katkısı yapıp yapamadığını ölçer.
+    # Bayat (DEGRADED) bir kaynak hâlâ veri kapsamına katkı verir; bu
+    # yüzden tazelik sorununu yanlışlıkla bütünlük sorunu saymayız.
+    if available == total:
         completeness = HEALTHY
-    elif unhealthy == total:
+    elif available == 0:
         completeness = UNHEALTHY
     else:
         completeness = DEGRADED
@@ -113,16 +113,28 @@ def overall_health(state: dict, now: datetime | None = None,
     else:
         freshness = DEGRADED
 
-    # Genel durum -- ikisinin en kotusu
+    # Operasyonel sağlık: kaynakların son denemelerindeki hata/bayatlık
+    # ayrıca görünür kalsın. Böylece completeness'i düzeltirken aktif bir
+    # kaynak hatasını overall status içinde yanlışlıkla gizlemeyiz.
+    if healthy == total:
+        operational = HEALTHY
+    elif unhealthy == total:
+        operational = UNHEALTHY
+    else:
+        operational = DEGRADED
+
+    # Genel durum -- üç boyutun en kötüsü
     order = {HEALTHY: 0, DEGRADED: 1, UNHEALTHY: 2}
-    status = max((freshness, completeness), key=lambda s: order[s])
+    status = max((freshness, completeness, operational), key=lambda s: order[s])
 
     return {
         "status": status,
         "freshness": freshness,
         "completeness": completeness,
+        "operational": operational,
         "reason": f"{healthy}/{total} kaynak saglikli",
         "sources": per_source,
         "healthy_source_count": healthy,
+        "available_source_count": available,
         "total_source_count": total,
     }

@@ -1,7 +1,6 @@
 {
   "_aciklama": "Sirket adi -> hisse kodu eslemesi. Haber metinlerinde sembol yerine sirket adi gecince eslesme saglar. Kucuk/buyuk harf ve Turkce karakter duyarsizdir. Kendin ekleyebilirsin.",
   "_uyari": "Kisa/belirsiz adlardan kacin ('is bankasi' yerine 'turkiye is bankasi'). Yanlis pozitif, kacirilan haberden daha kotudur.",
-
   "garanti bankasi": "GARAN",
   "garanti bbva": "GARAN",
   "akbank": "AKBNK",
@@ -14,13 +13,10 @@
   "albaraka": "ALBRK",
   "sekerbank": "SKBNK",
   "tskb": "TSKB",
-
   "turk hava yollari": "THYAO",
   "thy": "THYAO",
   "pegasus": "PGSUS",
   "tav havalimanlari": "TAVHL",
-  "celebi": "CLEBI",
-
   "tupras": "TUPRS",
   "petkim": "PETKM",
   "aygaz": "AYGAZ",
@@ -30,7 +26,6 @@
   "aksa enerji": "AKSEN",
   "smart guneş": "SMRTG",
   "astor enerji": "ASTOR",
-
   "eregli demir": "EREGL",
   "erdemir": "EREGL",
   "kardemir": "KRDMD",
@@ -40,14 +35,12 @@
   "cimsa": "CIMSA",
   "akcansa": "AKCNS",
   "oyak cimento": "OYAKC",
-
   "bim ": "BIMAS",
   "bim birlesik": "BIMAS",
   "migros": "MGROS",
   "sok marketler": "SOKM",
   "carrefoursa": "CRFSA",
   "bizim toptan": "BIZIM",
-
   "turkcell": "TCELL",
   "turk telekom": "TTKOM",
   "aselsan": "ASELS",
@@ -58,7 +51,6 @@
   "escort teknoloji": "ESCOM",
   "arena bilgisayar": "ARENA",
   "fonet bilgi": "FONET",
-
   "ford otosan": "FROTO",
   "tofas": "TOASO",
   "dogus otomotiv": "DOAS",
@@ -68,10 +60,8 @@
   "arcelik": "ARCLK",
   "vestel": "VESTL",
   "vestel beyaz": "VESBE",
-
   "koc holding": "KCHOL",
   "sabanci holding": "SAHOL",
-  "sabanci": "SAHOL",
   "alarko": "ALARK",
   "enka insaat": "ENKAI",
   "tekfen": "TKFEN",
@@ -84,17 +74,14 @@
   "tat gida": "TATGD",
   "pinar sut": "PNSUT",
   "banvit": "BANVT",
-
   "emlak konut": "EKGYO",
   "torunlar gyo": "TRGYO",
   "is gyo": "ISGYO",
   "halk gyo": "HLGYO",
-
   "sasa polyester": "SASA",
   "hektas": "HEKTS",
   "gubre fabrikalari": "GUBRF",
   "bagfas": "BAGFS",
-  "sok ": "SOKM",
   "mavi giyim": "MAVI",
   "koton": "KOTON",
   "ebebek": "EBEBK",
@@ -103,5 +90,8 @@
   "fenerbahce": "FENER",
   "galatasaray": "GSRAY",
   "besiktas": "BJKAS",
-  "trabzonspor": "TSPOR"
+  "trabzonspor": "TSPOR",
+  "sok market": "SOKM",
+  "celebi hava servis": "CLEBI",
+  "celebi havacilik": "CLEBI"
 }

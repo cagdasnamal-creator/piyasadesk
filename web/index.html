@@ -316,8 +316,17 @@ function persistWatchlists(){
 async function loadWatchlists(){
   try{
     const raw = localStorage.getItem(WATCHLISTS_KEY);
-    watchlists = raw ? JSON.parse(raw) : {};
-    if(!watchlists || Array.isArray(watchlists) || typeof watchlists !== "object") watchlists = {};
+    const parsed = raw ? JSON.parse(raw) : {};
+    watchlists = {};
+    if(parsed && !Array.isArray(parsed) && typeof parsed === "object") {
+      for(const [name, values] of Object.entries(parsed)) {
+        if(typeof name !== "string" || !Array.isArray(values)) continue;
+        watchlists[name] = [...new Set(values
+          .filter(x => typeof x === "string")
+          .map(x => x.trim().toUpperCase())
+          .filter(x => /^[A-Z0-9]{3,6}$/.test(x)))].slice(0,200);
+      }
+    }
   }catch(e){ watchlists = {}; }
   renderTabs();
 }
@@ -341,6 +350,7 @@ function renderTabs(){
     t.onclick = () => {
       activeList = t.dataset.list;
       $("#q").value = "";           // liste sekmesi tek-sembol aramasını geçersiz kılar
+      leaveWorldModeForTickerContext();
       setSearchMode("");
       renderTabs(); loadNews();
     };
@@ -380,14 +390,19 @@ async function saveDialog(){
   if(!name){ $("#dlgErr").textContent = "Liste adı boş olamaz."; return; }
   if(name.length > 24){ $("#dlgErr").textContent = "Liste adı en fazla 24 karakter olabilir."; return; }
   if(!/^[A-Za-z0-9ÇĞİÖŞÜçğıöşü _-]{1,24}$/.test(name)){ $("#dlgErr").textContent = "Liste adında geçersiz karakter var."; return; }
+  if(!tickers.length){ $("#dlgErr").textContent = "Listeye en az bir hisse kodu eklemelisin."; return; }
   if(tickers.length > 200){ $("#dlgErr").textContent = "Bir listede en fazla 200 sembol olabilir."; return; }
   const unknown = universeSet.size ? tickers.filter(t => !universeSet.has(t)) : [];
   if(unknown.length){ $("#dlgErr").textContent = "Sembol evreninde bulunmayan kod(lar): "+unknown.join(", "); return; }
   const original = $("#dlg").dataset.original;
+  if(name !== original && Object.prototype.hasOwnProperty.call(watchlists, name)){
+    $("#dlgErr").textContent = `"${name}" adında bir liste zaten var.`; return;
+  }
   if(original && original !== name) delete watchlists[original];
   watchlists[name] = tickers;
   persistWatchlists();
   activeList = name;
+  leaveWorldModeForTickerContext();
   $("#dlg").close(); renderTabs(); loadNews();
 }
 
@@ -419,6 +434,23 @@ function groupLabelForItem(i){
     return (i.classification||{}).importance_label || "Diğer";
   }
   return dateGroupLabel(i.published_at || i.collected_at || "");
+}
+
+function leaveWorldModeForTickerContext(){
+  if(!worldOnly) return;
+  worldOnly = false;
+  $("#worldchip").classList.remove("on");
+  const allSources = document.querySelector('.chip[data-kind=""]');
+  if(allSources) allSources.classList.add("on");
+  kindFilter = "";
+}
+
+function beginTickerSearch(){
+  activeList = "";
+  leaveWorldModeForTickerContext();
+  renderTabs();
+  setSearchMode("search");
+  loadNews();
 }
 
 async function loadNews(){
@@ -486,7 +518,7 @@ async function loadNews(){
       localStorage.setItem("hhm_pending_seen", newestTs);
     }
     document.querySelectorAll(".tick").forEach(el =>
-      el.onclick = () => { $("#q").value = el.dataset.t; setSearchMode("search"); loadNews(); });
+      el.onclick = () => { $("#q").value = el.dataset.t; beginTickerSearch(); });
   }catch(e){
     $("#list").innerHTML = `<div class="empty err">API'ye ulaşılamadı.</div>`;
   }
@@ -501,10 +533,7 @@ function setSearchMode(mode){
 
 function refreshAll(){ loadHealth(); loadNews(); }
 
-$("#go").onclick = () => {
-  setSearchMode("search");
-  loadNews();
-};
+$("#go").onclick = beginTickerSearch;
 $("#clear").onclick = () => {
   setSearchMode("all");
   $("#q").value = "";
@@ -513,7 +542,7 @@ $("#clear").onclick = () => {
   loadNews();
 };
 $("#refresh").onclick = refreshAll;
-$("#q").addEventListener("keydown", e => { if(e.key==="Enter"){ setSearchMode("search"); loadNews(); } });
+$("#q").addEventListener("keydown", e => { if(e.key==="Enter") beginTickerSearch(); });
 
 document.querySelectorAll(".chip[data-kind]").forEach(c => c.onclick = () => {
   document.querySelectorAll(".chip[data-kind]").forEach(x=>x.classList.remove("on"));

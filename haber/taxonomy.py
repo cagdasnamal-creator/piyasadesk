@@ -183,6 +183,14 @@ def classify_category(item: NewsItem) -> str:
             # kisa tokenlarda yanlis pozitifleri azaltir.
             if f" {p} " in padded or (" " in p and p in text):
                 return cat
+            # Türkçede ekler kelimenin sonuna bitişir: "ihaleyi",
+            # "sözleşmesi", "bilançosunu", "temettüyü" gibi.
+            # Yalnızca tek kelimeli ve yeterince uzun (>=5) kalıplarda
+            # token-prefix eşleşmesi yapıyoruz; "kar" -> "karar" gibi
+            # kısa kelime yanlış pozitiflerini özellikle önlüyoruz.
+            if " " not in p and len(p) >= 5:
+                if any(tok.startswith(p) for tok in text.split()):
+                    return cat
     # Genel/dunya medya haberi ticker'siz ise macro/piyasa saymak UI icin
     # daha anlamli; ancak sirket haberi siniflandirilamadiysa OTHER kalir.
     if item.source_kind == SOURCE_KIND_MEDIA and not (item.tickers or ()):

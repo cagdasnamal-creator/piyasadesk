@@ -97,7 +97,7 @@ def api_news(
         t = ticker.strip().upper()
         applied_tickers = [t]
         items = [i for i in items if t in (i.tickers or ())]
-    elif tickers:
+    elif tickers is not None:
         universe = load_universe()
         requested = []
         for raw in tickers.split(','):
@@ -157,13 +157,17 @@ def api_news(
         enriched = [(i, c) for i, c in enriched if c.importance_level == imp]
 
     sort_mode = (sort or "latest").strip().lower()
+    # Önce en yeniye göre sırala. Python sort stabil olduğu için önem
+    # sıralaması sonradan uygulandığında aynı önem/puan içindeki haberler
+    # yine en yeni -> eski kalır. Özellikle importance_asc modunda eski
+    # haberlerin yanlışlıkla üste çıkmasını önler.
+    enriched.sort(key=lambda pair: _sort_key(pair[0]), reverse=True)
     if sort_mode == "importance_desc":
-        enriched.sort(key=lambda pair: (_importance_rank(pair[1].importance_level), pair[1].importance_points, _sort_key(pair[0])), reverse=True)
+        enriched.sort(key=lambda pair: (_importance_rank(pair[1].importance_level), pair[1].importance_points), reverse=True)
     elif sort_mode == "importance_asc":
-        enriched.sort(key=lambda pair: (_importance_rank(pair[1].importance_level), pair[1].importance_points, _sort_key(pair[0])))
+        enriched.sort(key=lambda pair: (_importance_rank(pair[1].importance_level), pair[1].importance_points))
     else:
         sort_mode = "latest"
-        enriched.sort(key=lambda pair: _sort_key(pair[0]), reverse=True)
 
     # Kaynaklar arasi ayni MEDIA basligi tek kartta toplanir. KAP kayitlari
     # resmi belge oldugu icin ASLA medya ile birlestirilmez. Baslik
@@ -174,15 +178,21 @@ def api_news(
     if dedupe:
         for item, cls in enriched:
             if item.source_kind == "MEDIA":
-                key = (item.source_kind, _dedupe_title(item.title), tuple(sorted(item.tickers or ())))
+                # Aynı genel başlık farklı günlerde yeniden kullanılabilir
+                # ("Piyasalarda gün ortası" gibi). Gün kovası olmadan 7
+                # günlük kayıtlar yanlışlıkla tek karta birleşiyordu.
+                day = (item.published_at or item.collected_at or "")[:10]
+                key = (item.source_kind, _dedupe_title(item.title), tuple(sorted(item.tickers or ())), day)
             else:
                 key = None
             if key and key in seen:
                 g = seen[key]
-                g["duplicate_count"] += 1
+                # Aynı kaynağın aynı başlıklı iki ayrı URL/haberi olabilir;
+                # sadece FARKLI kaynaklar arası dedupe yap.
                 if item.source_id not in g["duplicate_sources"]:
+                    g["duplicate_count"] += 1
                     g["duplicate_sources"].append(item.source_id)
-                continue
+                    continue
             rec = {"item": item, "cls": cls, "duplicate_count": 1, "duplicate_sources": [item.source_id]}
             grouped.append(rec)
             if key:

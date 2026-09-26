@@ -13,6 +13,7 @@ cikarim). KAP ise EXACT verir. Bu ayrim UI'da gosterilir.
 """
 from __future__ import annotations
 
+import html
 import re
 import time
 from datetime import datetime, timezone
@@ -140,6 +141,11 @@ class RssNewsSource(NewsSource):
 
         for entry in entries:
             title = (getattr(entry, "title", "") or "").strip()
+            for _ in range(3):
+                decoded_title = html.unescape(title)
+                if decoded_title == title:
+                    break
+                title = decoded_title
             link = (getattr(entry, "link", "") or "").strip()
             raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "") or ""
             summary = clip_summary(raw_summary)
