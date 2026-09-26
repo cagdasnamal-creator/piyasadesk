@@ -915,3 +915,59 @@ def test_lan_batch_binds_all_interfaces_and_warns_about_firewall():
     assert "0.0.0.0" in txt
     assert "ipconfig" in txt
     assert "Duvari" in txt or "duvari" in txt.lower()
+
+# --- HABER TAKSONOMISI / BILGI ONEMI ---------------------------------
+
+def test_taxonomy_contract_tender_company_news():
+    from haber.taxonomy import classify, CAT_CONTRACT_TENDER, IMP_NOTICE
+    it = _item(
+        source_kind="MEDIA", match_confidence="INFERRED", tickers=("ESCOM",),
+        title="ESCOM yeni ihale sözleşmesi imzaladı",
+    )
+    c = classify(it)
+    assert c.category == CAT_CONTRACT_TENDER
+    assert c.importance_level in {IMP_NOTICE, "IMPORTANT", "HIGH"}
+    assert c.reasons
+
+
+def test_taxonomy_financial_kap_is_high_information_importance():
+    from haber.taxonomy import classify, CAT_FINANCIALS, IMP_HIGH
+    it = _item(
+        source_kind="REGULATORY", source_id="KAP", match_confidence="EXACT",
+        tickers=("GARAN",), title="GARAN -- Finansal Rapor",
+        extra={"kap_subject_class": "MATERIAL"},
+    )
+    c = classify(it)
+    assert c.category == CAT_FINANCIALS
+    assert c.importance_level == IMP_HIGH
+    # Bu puan AL/SAT degildir; aciklanabilirlik metadata'sidir.
+    assert 0 <= c.importance_points <= 100
+
+
+def test_taxonomy_routine_kap_is_low_even_if_regulatory():
+    from haber.taxonomy import classify, IMP_LOW
+    it = _item(
+        source_kind="REGULATORY", source_id="KAP", match_confidence="EXACT",
+        tickers=("ESCOM",), title="Pay Bazında Devre Kesici Bildirimi",
+        extra={"kap_subject_class": "ROUTINE"},
+    )
+    assert classify(it).importance_level == IMP_LOW
+
+
+def test_taxonomy_world_media_is_macro_and_low():
+    from haber.taxonomy import classify, CAT_MARKET_MACRO, IMP_LOW
+    it = _item(
+        source_kind="MEDIA", match_confidence="INFERRED", tickers=(),
+        title="Fed faiz kararı sonrası küresel piyasalar",
+    )
+    c = classify(it)
+    assert c.category == CAT_MARKET_MACRO
+    assert c.importance_level == IMP_LOW
+
+
+def test_taxonomy_does_not_mutate_news_contract_fields():
+    from haber.taxonomy import classify
+    it = _item(title="ESCOM ihale kazandı")
+    before = it.to_dict()
+    classify(it)
+    assert it.to_dict() == before

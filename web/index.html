@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hisse Haber Merkezi</title>
+<title>PiyasaDesk</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#141417">
 <link rel="icon" href="/static/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Hisse Haber">
+<meta name="apple-mobile-web-app-title" content="PiyasaDesk">
 <style>
   :root{
     box-sizing:border-box;
@@ -95,6 +95,18 @@
   }
   .chip.on{border-color:var(--accent);color:var(--accent)}
 
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:-4px 0 14px}
+  .filterbox{
+    display:flex;gap:7px;align-items:center;padding:5px 9px;border:1px solid var(--border);
+    border-radius:9px;background:var(--panel);font-size:12.5px;color:var(--muted);
+  }
+  .filterbox select{
+    border:0;background:transparent;color:var(--text);font:inherit;outline:none;cursor:pointer;
+    max-width:210px;
+  }
+  .filterbox option{background:var(--panel);color:var(--text)}
+  .filter-note{font-size:11.5px;color:var(--muted)}
+
   .health{
     background:var(--panel);border:1px solid var(--border);border-radius:10px;
     padding:11px 13px;margin-bottom:16px;font-size:13px;
@@ -129,6 +141,11 @@
   .badge.src-BLOOMBERGHT{color:#8f8fd0;border-color:#8f8fd0}
   .badge.src-FOREKS{color:#c06a9a;border-color:#c06a9a}
   .badge.INFERRED{color:var(--warn);border-color:var(--warn)}
+  .badge.CATEGORY{color:#9aa7b6;border-color:#596779}
+  .badge.IMP-LOW{opacity:.65}
+  .badge.IMP-NOTICE{color:var(--warn);border-color:var(--warn)}
+  .badge.IMP-IMPORTANT{color:#ff9d4d;border-color:#ff9d4d;font-weight:600}
+  .badge.IMP-HIGH{color:#ff6262;border-color:#ff6262;font-weight:700}
   .tick{font-weight:600;color:var(--accent);cursor:pointer}
   .summary{color:var(--muted);margin-top:7px;font-size:13.5px}
   .empty{color:var(--muted);text-align:center;padding:40px 10px}
@@ -139,7 +156,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Hisse Haber Merkezi</h1>
+    <h1>PiyasaDesk</h1>
     <span class="sub" id="subtitle">yükleniyor…</span>
   </header>
 
@@ -160,6 +177,38 @@
     <span class="chip" id="worldchip" title="BIST sembolüne eşleşmeyen genel/dünya medya haberlerini göster">Dünya haberleri</span>
     <span class="chip" id="routinechip" title="Rutin/teknik KAP bildirimlerini akışta göster veya gizle">Rutin KAP’ları göster</span>
     <span class="chip" id="autochip">Otomatik yenile: kapalı</span>
+  </div>
+
+  <div class="filters">
+    <label class="filterbox" for="importanceFilter">
+      <span>Önem</span>
+      <select id="importanceFilter">
+        <option value="">Tümü</option>
+        <option value="HIGH">Yüksek Önem</option>
+        <option value="IMPORTANT">Önemli</option>
+        <option value="NOTICE">Dikkat</option>
+        <option value="LOW">Düşük Öncelik</option>
+      </select>
+    </label>
+    <label class="filterbox" for="categoryFilter">
+      <span>Kategori</span>
+      <select id="categoryFilter">
+        <option value="">Tümü</option>
+        <option value="FINANCIALS">Finansal Sonuç</option>
+        <option value="CONTRACT_TENDER">İhale / Sözleşme</option>
+        <option value="CAPITAL_ACTION">Sermaye İşlemi</option>
+        <option value="DIVIDEND">Temettü</option>
+        <option value="BUYBACK">Pay Geri Alımı</option>
+        <option value="MNA">Birleşme / Satın Alma</option>
+        <option value="INVESTMENT_OPERATION">Yatırım / Operasyon</option>
+        <option value="LEGAL_REGULATORY">Hukuk / Regülasyon</option>
+        <option value="MANAGEMENT_GOVERNANCE">Yönetim / Kurumsal</option>
+        <option value="DEBT_CREDIT">Borçlanma / Kredi</option>
+        <option value="MARKET_MACRO">Makro / Piyasa</option>
+        <option value="OTHER">Diğer</option>
+      </select>
+    </label>
+    <span class="filter-note" title="Bu seviye fiyat yönü veya yatırım tavsiyesi değildir.">Önem = bilgi/maddilik sınıfı, yön tahmini değil.</span>
   </div>
 
   <div class="health" id="health">sağlık durumu yükleniyor…</div>
@@ -185,6 +234,8 @@
 const $ = s => document.querySelector(s);
 let kindFilter = "";
 let worldOnly = false;
+let importanceFilter = "";
+let categoryFilter = "";
 let autoTimer = null;
 let activeList = "";      // "" = tüm haberler
 let watchlists = {};
@@ -341,6 +392,8 @@ async function loadNews(){
   if(worldOnly) params.set("world_only", "true");
   else params.set("hide_world", "true");
   if(hideRoutine) params.set("hide_routine", "true");
+  if(importanceFilter) params.set("importance", importanceFilter);
+  if(categoryFilter) params.set("category", categoryFilter);
   try{
     const r = await fetch("/api/news?"+params);
     const d = await r.json();
@@ -358,6 +411,8 @@ async function loadNews(){
       const isNew = lastSeen && ts > lastSeen;
       if(ts > newestTs) newestTs = ts;
       const routine = (i.extra||{}).kap_subject_class === "ROUTINE";
+      const cls = i.classification || {};
+      const reasonTitle = (cls.reasons||[]).join(" • ");
       return `
       <div class="item${isNew?" unseen":""}">
         <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
@@ -365,7 +420,9 @@ async function loadNews(){
         <div class="meta">
           ${isNew ? `<span class="badge yeni">yeni</span>` : ""}
           <span class="badge ${esc(i.source_kind)} src-${esc(i.source_id)}">${esc(i.source_id)}</span>
-          ${routine ? `<span class="badge ROUTINE" title="Rutin/teknik bildirim türü">rutin</span>` : ""}
+          ${cls.importance_label ? `<span class="badge IMP-${esc(cls.importance_level)}" title="${esc(reasonTitle)}">${esc(cls.importance_label)}</span>` : ""}
+          ${cls.category_label ? `<span class="badge CATEGORY">${esc(cls.category_label)}</span>` : ""}
+          ${routine ? `<span class="badge ROUTINE" title="Rutin/teknik bildirim türü">rutin KAP</span>` : ""}
           ${i.match_confidence==="INFERRED" && (i.tickers||[]).length ? `<span class="badge INFERRED" title="Sembol metinden çıkarıldı, kaynak yapısal olarak vermedi">çıkarım</span>` : ""}
           ${(i.tickers||[]).map(x=>`<span class="tick" data-t="${esc(x)}">${esc(x)}</span>`).join(" ")}
           <span style="color:var(--muted)">${fmtTime(ts)}</span>
@@ -425,6 +482,16 @@ $("#routinechip").onclick = function(){
   hideRoutine = !hideRoutine;
   this.textContent = hideRoutine ? "Rutin KAP’ları göster" : "Rutin KAP’ları gizle";
   this.classList.toggle("on", !hideRoutine);
+  loadNews();
+};
+
+$("#importanceFilter").onchange = function(){
+  importanceFilter = this.value;
+  loadNews();
+};
+
+$("#categoryFilter").onchange = function(){
+  categoryFilter = this.value;
   loadNews();
 };
 

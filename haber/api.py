@@ -22,11 +22,12 @@ from haber import health as health_mod
 from haber import store
 from haber.contract import CONTRACT_VERSION
 from haber.tickers import load_universe
+from haber.taxonomy import classify as classify_news, category_options, importance_options
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WEB_DIR = BASE_DIR / "web"
 
-app = FastAPI(title="Hisse Haber Merkezi", version="1.0")
+app = FastAPI(title="PiyasaDesk", version="1.1")
 
 
 def _sort_key(item):
@@ -61,6 +62,8 @@ def api_news(
     hide_routine: bool = Query(False, description="KAP rutin bildirimlerini gizle"),
     hide_world: bool = Query(False, description="Sembolsuz genel/dunya medya haberlerini gizle"),
     world_only: bool = Query(False, description="Yalnizca sembolsuz genel/dunya medya haberlerini getir"),
+    category: Optional[str] = Query(None, description="Turetilmis haber kategorisi"),
+    importance: Optional[str] = Query(None, description="LOW / NOTICE / IMPORTANT / HIGH"),
 ):
     """Haberleri dondurur.
 
@@ -125,20 +128,37 @@ def api_news(
     elif hide_world:
         items = [i for i in items if not _is_world_item(i)]
 
-    items.sort(key=_sort_key, reverse=True)
-    total = len(items)
-    items = items[:limit]
+    # Kategori/onem metadata'si depoya yazilmaz; immutable NewsItem uzerinden
+    # okuma aninda deterministik olarak turetilir. NEWS != SIGNAL siniri korunur.
+    enriched = [(i, classify_news(i)) for i in items]
+    if category:
+        cat = category.strip().upper()
+        enriched = [(i, c) for i, c in enriched if c.category == cat]
+    if importance:
+        imp = importance.strip().upper()
+        enriched = [(i, c) for i, c in enriched if c.importance_level == imp]
+
+    enriched.sort(key=lambda pair: _sort_key(pair[0]), reverse=True)
+    total = len(enriched)
+    enriched = enriched[:limit]
+
+    out_items = []
+    for item, cls in enriched:
+        d = item.to_dict()
+        d["classification"] = cls.to_dict()
+        out_items.append(d)
 
     return {
         "contract_version": CONTRACT_VERSION,
         "query": {"ticker": ticker, "tickers": tickers, "limit": limit,
                   "source_kind": source_kind, "match": match,
                   "hide_routine": hide_routine,
-                  "hide_world": hide_world, "world_only": world_only},
+                  "hide_world": hide_world, "world_only": world_only,
+                  "category": category, "importance": importance},
         "applied_tickers": applied_tickers,
         "total_matched": total,
-        "returned": len(items),
-        "items": [i.to_dict() for i in items],
+        "returned": len(out_items),
+        "items": out_items,
     }
 
 
@@ -147,6 +167,16 @@ def api_news(
 # Sunucuda ortak watchlist CRUD endpoint'i YOKTUR. Bu, public deploy'da
 # ziyaretcilerin birbirinin listelerini gormesini/silmesini engeller.
 # ---------------------------------------------------------------------
+
+@app.get("/api/taxonomy")
+def api_taxonomy():
+    """UI icin deterministik kategori/onem secenekleri."""
+    return {
+        "categories": category_options(),
+        "importance_levels": importance_options(),
+        "note": "Önem seviyesi yatırım yönü/tavsiyesi değildir; bilgi yoğunluğu sınıflamasıdır.",
+    }
+
 
 @app.get("/api/stats")
 def api_stats():

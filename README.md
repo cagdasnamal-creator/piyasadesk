@@ -276,3 +276,12 @@ freshness/completeness ayrımı, ve iki mimari garanti:
 API'nin ağ kütüphanesi import etmediği, contract'ta sinyal/tavsiye alanı
 bulunmadığı, API'nin veri deposuna yazmadığı, ve ağ kütüphanelerinin
 sadece `sources/` katmanında kullanıldığı.
+
+## Deterministik kategori ve önem sınıflaması
+
+UI artık her kayıt için haber kategorisi ve bilgi-önem seviyesi gösterir.
+Bu sınıflama `haber/taxonomy.py` içindeki açık kurallardan türetilir; NewsItem
+ham kaydı değiştirilmez. **Önem seviyesi fiyat yönü, sentiment, al/sat sinyali
+veya yatırım tavsiyesi değildir.** Yalnızca resmi kaynak, sembol eşleşmesi,
+haber türü ve KAP konu sınıfı gibi gözlenebilir özelliklerle akışı önceliklendirmek
+için kullanılır. Badge üzerine gelince gerekçeler görülebilir.
