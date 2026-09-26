@@ -64,6 +64,14 @@
   }
   .tab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
   .tab.add{border-style:dashed;color:var(--accent)}
+  .tab .tab-actions{display:inline-flex;gap:2px;margin-left:7px;vertical-align:middle}
+  .tab .tab-action{
+    padding:1px 4px;border:0;background:transparent;color:var(--muted);
+    font-size:13px;line-height:1;opacity:.55;border-radius:4px;
+  }
+  .tab:hover .tab-action,.tab.on .tab-action{opacity:.9}
+  .tab .tab-action:hover{color:var(--accent);background:rgba(255,255,255,.06)}
+  .tab .tab-action.delete:hover{color:var(--bad)}
 
   dialog{
     border:1px solid var(--border);border-radius:12px;background:var(--panel);
@@ -247,7 +255,13 @@ function renderTabs(){
   const names = Object.keys(watchlists);
   let html = `<span class="tab ${activeList===""?"on":""}" data-list="">Tüm haberler</span>`;
   html += names.map(n =>
-    `<span class="tab ${activeList===n?"on":""}" data-list="${esc(n)}">${esc(n)} <span style="opacity:.6">(${watchlists[n].length})</span></span>`
+    `<span class="tab ${activeList===n?"on":""}" data-list="${esc(n)}">
+      ${esc(n)} <span style="opacity:.6">(${watchlists[n].length})</span>
+      <span class="tab-actions">
+        <button class="tab-action edit" type="button" title="Listeyi düzenle" aria-label="${esc(n)} listesini düzenle">✎</button>
+        <button class="tab-action delete" type="button" title="Listeyi sil" aria-label="${esc(n)} listesini sil">×</button>
+      </span>
+    </span>`
   ).join("");
   html += `<span class="tab add" id="addList">+ liste</span>`;
   $("#tabs").innerHTML = html;
@@ -259,8 +273,19 @@ function renderTabs(){
       renderTabs(); loadNews();
     };
     if(t.dataset.list){
-      t.ondblclick = () => openDialog(t.dataset.list);  // çift tık = düzenle
-      t.title = "Çift tıkla: düzenle";
+      t.ondblclick = () => openDialog(t.dataset.list);  // geriye dönük: çift tık da düzenler
+      const editBtn = t.querySelector(".tab-action.edit");
+      const delBtn = t.querySelector(".tab-action.delete");
+      if(editBtn) editBtn.onclick = (e) => { e.stopPropagation(); openDialog(t.dataset.list); };
+      if(delBtn) delBtn.onclick = (e) => {
+        e.stopPropagation();
+        const name = t.dataset.list;
+        if(!confirm(`"${name}" listesi silinsin mi?`)) return;
+        delete watchlists[name];
+        persistWatchlists();
+        if(activeList === name) activeList = "";
+        renderTabs(); loadNews();
+      };
     }
   });
   $("#addList").onclick = () => openDialog(null);
