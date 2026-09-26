@@ -147,6 +147,12 @@
   .badge.IMP-IMPORTANT{color:#ff9d4d;border-color:#ff9d4d;font-weight:600}
   .badge.IMP-HIGH{color:#ff6262;border-color:#ff6262;font-weight:700}
   .tick{font-weight:600;color:var(--accent);cursor:pointer}
+  .title-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .title-row .title-tickers{display:inline-flex;gap:5px;flex-wrap:wrap}
+  .title-row .title-tickers .tick{
+    padding:2px 6px;border:1px solid rgba(86,156,214,.45);
+    border-radius:6px;background:rgba(86,156,214,.08);font-size:12px;
+  }
   .summary{color:var(--muted);margin-top:7px;font-size:13.5px}
   .group-title{margin:18px 2px 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
   .group-title:first-child{margin-top:4px}
@@ -458,7 +464,10 @@ async function loadNews(){
       const dupSources = (i.duplicate_sources||[]).join(", ");
       html += `
       <div class="item${isNew?" unseen":""}">
-        <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
+        <div class="title-row">
+          ${(i.tickers||[]).length ? `<span class="title-tickers">${(i.tickers||[]).map(x=>`<span class="tick" data-t="${esc(x)}">${esc(x)}</span>`).join("")}</span>` : ""}
+          <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
+        </div>
         ${i.summary ? `<div class="summary">${esc(i.summary)}</div>` : ""}
         <div class="meta">
           ${isNew ? `<span class="badge yeni">yeni</span>` : ""}
@@ -468,7 +477,6 @@ async function loadNews(){
           ${cls.category_label ? `<span class="badge CATEGORY">${esc(cls.category_label)}</span>` : ""}
           ${routine ? `<span class="badge ROUTINE" title="Rutin/teknik bildirim türü">rutin KAP</span>` : ""}
           ${i.match_confidence==="INFERRED" && (i.tickers||[]).length ? `<span class="badge INFERRED" title="Hisse kodu haberde doğrudan verilmedi; şirket adı/alias eşleşmesiyle bulundu">şirket adından eşleşti</span>` : ""}
-          ${(i.tickers||[]).map(x=>`<span class="tick" data-t="${esc(x)}">${esc(x)}</span>`).join(" ")}
           <span style="color:var(--muted)">${fmtTime(ts)}</span>
         </div>
       </div>`;
