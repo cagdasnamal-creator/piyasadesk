@@ -140,7 +140,7 @@
   .badge.src-DUNYA{color:#c98a3f;border-color:#c98a3f}
   .badge.src-BLOOMBERGHT{color:#8f8fd0;border-color:#8f8fd0}
   .badge.src-FOREKS{color:#c06a9a;border-color:#c06a9a}
-  .badge.INFERRED{color:var(--warn);border-color:var(--warn)}
+  .badge.INFERRED{color:var(--muted);border-color:var(--border);font-size:11px}
   .badge.CATEGORY{color:#9aa7b6;border-color:#596779}
   .badge.IMP-LOW{opacity:.65}
   .badge.IMP-NOTICE{color:var(--warn);border-color:var(--warn)}
@@ -423,7 +423,7 @@ async function loadNews(){
           ${cls.importance_label ? `<span class="badge IMP-${esc(cls.importance_level)}" title="${esc(reasonTitle)}">${esc(cls.importance_label)}</span>` : ""}
           ${cls.category_label ? `<span class="badge CATEGORY">${esc(cls.category_label)}</span>` : ""}
           ${routine ? `<span class="badge ROUTINE" title="Rutin/teknik bildirim türü">rutin KAP</span>` : ""}
-          ${i.match_confidence==="INFERRED" && (i.tickers||[]).length ? `<span class="badge INFERRED" title="Sembol metinden çıkarıldı, kaynak yapısal olarak vermedi">çıkarım</span>` : ""}
+          ${i.match_confidence==="INFERRED" && (i.tickers||[]).length ? `<span class="badge INFERRED" title="Hisse kodu haberde doğrudan verilmedi; şirket adı/alias eşleşmesiyle bulundu">şirket adından eşleşti</span>` : ""}
           ${(i.tickers||[]).map(x=>`<span class="tick" data-t="${esc(x)}">${esc(x)}</span>`).join(" ")}
           <span style="color:var(--muted)">${fmtTime(ts)}</span>
         </div>
