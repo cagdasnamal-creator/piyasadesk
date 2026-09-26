@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hisse Haber Merkezi</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#141417">
+<link rel="icon" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hisse Haber">
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    --bg:#f7f7f8; --panel:#ffffff; --border:#e3e3e6; --text:#1a1a1c;
+    --muted:#6b6b72; --accent:#1f6feb; --reg:#7a3ea3; --media:#0a7c5a;
+    --warn:#b7791f; --bad:#c23b3b; --good:#0a7c5a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141417; --panel:#1c1c20; --border:#2e2e34; --text:#e9e9ec;
+      --muted:#9a9aa2; --accent:#5a9dff; --reg:#c08ae0; --media:#4ecfa3;
+      --warn:#e0b050; --bad:#ff7b7b; --good:#4ecfa3;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141417; --panel:#1c1c20; --border:#2e2e34; --text:#e9e9ec;
+    --muted:#9a9aa2; --accent:#5a9dff; --reg:#c08ae0; --media:#4ecfa3;
+    --warn:#e0b050; --bad:#ff7b7b; --good:#4ecfa3;
+  }
+  *{box-sizing:inherit}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  h1{font-size:20px;margin:0;letter-spacing:-.2px}
+  .sub{color:var(--muted);font-size:13px}
+
+  .searchbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  input[type=text]{
+    flex:1 1 220px;min-width:0;padding:11px 13px;border-radius:9px;
+    border:1px solid var(--border);background:var(--panel);color:var(--text);
+    font-size:16px;text-transform:uppercase;letter-spacing:.5px;
+  }
+  input[type=text]:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  button{
+    padding:11px 15px;border-radius:9px;border:1px solid var(--border);
+    background:var(--panel);color:var(--text);cursor:pointer;font-size:14px;
+  }
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .tab{
+    padding:7px 14px;border-radius:9px 9px 0 0;border:1px solid var(--border);
+    border-bottom:2px solid transparent;background:var(--panel);cursor:pointer;
+    font-size:14px;color:var(--muted);
+  }
+  .tab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+  .tab.add{border-style:dashed;color:var(--accent)}
+
+  dialog{
+    border:1px solid var(--border);border-radius:12px;background:var(--panel);
+    color:var(--text);padding:18px;max-width:440px;width:92%;
+  }
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  dialog h3{margin:0 0 10px;font-size:16px}
+  dialog label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  dialog input,dialog textarea{
+    width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--border);
+    background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;
+  }
+  dialog textarea{min-height:90px;text-transform:uppercase;resize:vertical}
+  .dlg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+  .dlg-err{color:var(--bad);font-size:13px;margin-top:8px;min-height:18px}
+
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{
+    padding:5px 11px;border-radius:999px;border:1px solid var(--border);
+    background:var(--panel);cursor:pointer;font-size:13px;color:var(--muted);
+  }
+  .chip.on{border-color:var(--accent);color:var(--accent)}
+
+  .health{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:11px 13px;margin-bottom:16px;font-size:13px;
+  }
+  .health-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .HEALTHY{background:var(--good)} .DEGRADED{background:var(--warn)} .UNHEALTHY{background:var(--bad)}
+  .health details{margin-top:8px}
+  .health summary{cursor:pointer;color:var(--muted)}
+  .srcline{padding:3px 0;color:var(--muted);font-size:12.5px}
+
+  .item{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:13px 15px;margin-bottom:9px;
+  }
+  .item.unseen{border-left:3px solid var(--accent)}
+  .badge.yeni{color:var(--accent);border-color:var(--accent);font-weight:600}
+  .badge.ROUTINE{opacity:.6}
+  .item a.title{color:var(--text);text-decoration:none;font-weight:600;font-size:15.5px}
+  .item a.title:hover{color:var(--accent)}
+  .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:7px;font-size:12px}
+  .badge{padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
+  /* Renk HIYERARSISI:
+     - REGULATORY (KAP) = belirgin mor. Yasal bildirim, farkli guven seviyesi.
+     - MEDIA = kaynak basina AYRI ama SOLUK tonlar. Taramayi kolaylastirir
+       ama "mor = resmi" refleksini bozmaz. */
+  .badge.REGULATORY{color:var(--reg);border-color:var(--reg);font-weight:600}
+  .badge.MEDIA{color:var(--media);border-color:var(--media)}
+  .badge.src-INVESTING_TR{color:#4a9fd8;border-color:#4a9fd8}
+  .badge.src-PARATIC{color:#3fae8f;border-color:#3fae8f}
+  .badge.src-DUNYA{color:#c98a3f;border-color:#c98a3f}
+  .badge.src-BLOOMBERGHT{color:#8f8fd0;border-color:#8f8fd0}
+  .badge.src-FOREKS{color:#c06a9a;border-color:#c06a9a}
+  .badge.INFERRED{color:var(--warn);border-color:var(--warn)}
+  .tick{font-weight:600;color:var(--accent);cursor:pointer}
+  .summary{color:var(--muted);margin-top:7px;font-size:13.5px}
+  .empty{color:var(--muted);text-align:center;padding:40px 10px}
+  .err{color:var(--bad)}
+  footer{margin-top:24px;color:var(--muted);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Hisse Haber Merkezi</h1>
+    <span class="sub" id="subtitle">yükleniyor…</span>
+  </header>
+
+  <div class="searchbar">
+    <input type="text" id="q" placeholder="Hisse kodu — örn. ESCOM" autocomplete="off" list="uni">
+    <datalist id="uni"></datalist>
+    <button class="primary" id="go">Ara</button>
+    <button id="clear">Tümü</button>
+    <button id="refresh" title="Yeniden yükle">↻</button>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="chips">
+    <span class="chip on" data-kind="">Tüm kaynaklar</span>
+    <span class="chip" data-kind="REGULATORY">Sadece KAP</span>
+    <span class="chip" data-kind="MEDIA">Sadece medya</span>
+    <span class="chip" id="routinechip">Rutin KAP: gizli</span>
+    <span class="chip" id="autochip">Otomatik yenile: kapalı</span>
+  </div>
+
+  <div class="health" id="health">sağlık durumu yükleniyor…</div>
+  <div id="list"></div>
+  <footer>Veriler yerel toplayıcıdan okunur. Tam metin için haber başlığına tıklayın.</footer>
+</div>
+
+<dialog id="dlg">
+  <h3 id="dlgTitle">Yeni izleme listesi</h3>
+  <label for="dlgName">Liste adı</label>
+  <input type="text" id="dlgName" placeholder="örn. BOLT" maxlength="24">
+  <label for="dlgTickers">Hisse kodları (virgül veya satır ile ayır)</label>
+  <textarea id="dlgTickers" placeholder="ESCOM, ARDYZ, GARAN"></textarea>
+  <div class="dlg-err" id="dlgErr"></div>
+  <div class="dlg-actions">
+    <button id="dlgDelete" style="margin-right:auto;color:var(--bad)">Listeyi sil</button>
+    <button id="dlgCancel">Vazgeç</button>
+    <button class="primary" id="dlgSave">Kaydet</button>
+  </div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+let kindFilter = "";
+let autoTimer = null;
+let activeList = "";      // "" = tüm haberler
+let watchlists = {};
+let hideRoutine = true;   // KAP rutin bildirimleri varsayılan GİZLİ
+let lastSeen = localStorage.getItem("hhm_last_seen") || "";
+
+function fmtTime(iso){
+  if(!iso) return "tarih yok";
+  const d = new Date(iso);
+  if(isNaN(d)) return "tarih yok";
+  const diff = (Date.now() - d.getTime())/60000;
+  if(diff < 1) return "az önce";
+  if(diff < 60) return Math.floor(diff) + " dk önce";
+  if(diff < 1440) return Math.floor(diff/60) + " saat önce";
+  return d.toLocaleDateString("tr-TR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+}
+
+function esc(s){
+  return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+async function loadHealth(){
+  try{
+    const r = await fetch("/api/health");
+    const d = await r.json();
+    const h = d.health;
+    $("#health").innerHTML = `
+      <div class="health-row">
+        <span><span class="dot ${h.freshness}"></span><b>Tazelik:</b> ${h.freshness}</span>
+        <span><span class="dot ${h.completeness}"></span><b>Bütünlük:</b> ${h.completeness} (${h.healthy_source_count}/${h.total_source_count} kaynak)</span>
+        <span style="color:var(--muted)">son toplama: ${fmtTime(d.last_run_at)}</span>
+      </div>
+      <details>
+        <summary>Kaynak detayı</summary>
+        ${Object.entries(h.sources||{}).map(([sid,s]) =>
+          `<div class="srcline"><span class="dot ${s.status}"></span>${esc(sid)} — ${esc(s.reason)}${s.last_error?` <span class="err">(${esc(String(s.last_error).slice(0,90))})</span>`:""}</div>`
+        ).join("") || "<div class='srcline'>kaynak yok</div>"}
+      </details>`;
+  }catch(e){
+    $("#health").innerHTML = `<span class="err">Sağlık durumu okunamadı — collector/API çalışıyor mu?</span>`;
+  }
+}
+
+async function loadUniverse(){
+  try{
+    const r = await fetch("/api/universe");
+    const d = await r.json();
+    $("#uni").innerHTML = d.tickers.map(t=>`<option value="${t}">`).join("");
+    $("#subtitle").textContent = `${d.count} sembol tanımlı`;
+  }catch(e){ $("#subtitle").textContent = ""; }
+}
+
+async function loadWatchlists(){
+  try{
+    const r = await fetch("/api/watchlists");
+    const d = await r.json();
+    watchlists = d.watchlists || {};
+  }catch(e){ watchlists = {}; }
+  renderTabs();
+}
+
+function renderTabs(){
+  const names = Object.keys(watchlists);
+  let html = `<span class="tab ${activeList===""?"on":""}" data-list="">Tüm haberler</span>`;
+  html += names.map(n =>
+    `<span class="tab ${activeList===n?"on":""}" data-list="${esc(n)}">${esc(n)} <span style="opacity:.6">(${watchlists[n].length})</span></span>`
+  ).join("");
+  html += `<span class="tab add" id="addList">+ liste</span>`;
+  $("#tabs").innerHTML = html;
+
+  document.querySelectorAll(".tab[data-list]").forEach(t => {
+    t.onclick = () => {
+      activeList = t.dataset.list;
+      $("#q").value = "";           // liste sekmesi tek-sembol aramasını geçersiz kılar
+      renderTabs(); loadNews();
+    };
+    if(t.dataset.list){
+      t.ondblclick = () => openDialog(t.dataset.list);  // çift tık = düzenle
+      t.title = "Çift tıkla: düzenle";
+    }
+  });
+  $("#addList").onclick = () => openDialog(null);
+}
+
+function openDialog(name){
+  $("#dlgTitle").textContent = name ? `Listeyi düzenle: ${name}` : "Yeni izleme listesi";
+  $("#dlgName").value = name || "";
+  $("#dlgTickers").value = name ? (watchlists[name]||[]).join(", ") : "";
+  $("#dlgErr").textContent = "";
+  $("#dlgDelete").style.display = name ? "" : "none";
+  $("#dlg").dataset.original = name || "";
+  $("#dlg").showModal();
+}
+
+async function saveDialog(){
+  const name = $("#dlgName").value.trim();
+  const tickers = $("#dlgTickers").value.split(/[,\s;]+/).map(s=>s.trim().toUpperCase()).filter(Boolean);
+  if(!name){ $("#dlgErr").textContent = "Liste adı boş olamaz."; return; }
+  try{
+    const r = await fetch("/api/watchlists/"+encodeURIComponent(name), {
+      method:"PUT", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({tickers})
+    });
+    const d = await r.json();
+    if(!r.ok){ $("#dlgErr").textContent = d.detail || "Kaydedilemedi."; return; }
+    const original = $("#dlg").dataset.original;
+    if(original && original !== name){ await fetch("/api/watchlists/"+encodeURIComponent(original), {method:"DELETE"}); }
+    watchlists = d.watchlists; activeList = name;
+    $("#dlg").close(); renderTabs(); loadNews();
+  }catch(e){ $("#dlgErr").textContent = "API'ye ulaşılamadı."; }
+}
+
+async function deleteDialog(){
+  const name = $("#dlg").dataset.original;
+  if(!name) return;
+  if(!confirm(`"${name}" listesi silinsin mi?`)) return;
+  const r = await fetch("/api/watchlists/"+encodeURIComponent(name), {method:"DELETE"});
+  const d = await r.json();
+  watchlists = d.watchlists;
+  if(activeList === name) activeList = "";
+  $("#dlg").close(); renderTabs(); loadNews();
+}
+
+async function loadNews(){
+  const t = $("#q").value.trim().toUpperCase();
+  const params = new URLSearchParams({limit:"80"});
+  if(t) params.set("ticker", t);
+  else if(activeList) params.set("watchlist", activeList);
+  if(kindFilter) params.set("source_kind", kindFilter);
+  if(hideRoutine) params.set("hide_routine", "true");
+  try{
+    const r = await fetch("/api/news?"+params);
+    const d = await r.json();
+    if(!d.items.length){
+      let msg;
+      if(t) msg = esc(t)+" için kayıt yok.";
+      else if(activeList) msg = `"${esc(activeList)}" listesindeki hisseler için kayıt yok.`;
+      else msg = "Henüz haber yok.";
+      $("#list").innerHTML = `<div class="empty">${msg}<br><span style="font-size:13px">Toplayıcıyı çalıştırdınız mı? <code>python -m haber.collector</code></span></div>`;
+      return;
+    }
+    let newestTs = lastSeen;
+    $("#list").innerHTML = d.items.map(i => {
+      const ts = i.published_at || i.collected_at || "";
+      const isNew = lastSeen && ts > lastSeen;
+      if(ts > newestTs) newestTs = ts;
+      const routine = (i.extra||{}).kap_subject_class === "ROUTINE";
+      return `
+      <div class="item${isNew?" unseen":""}">
+        <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
+        ${i.summary ? `<div class="summary">${esc(i.summary)}</div>` : ""}
+        <div class="meta">
+          ${isNew ? `<span class="badge yeni">yeni</span>` : ""}
+          <span class="badge ${esc(i.source_kind)} src-${esc(i.source_id)}">${esc(i.source_id)}</span>
+          ${routine ? `<span class="badge ROUTINE" title="Rutin/teknik bildirim türü">rutin</span>` : ""}
+          ${i.match_confidence==="INFERRED" && (i.tickers||[]).length ? `<span class="badge INFERRED" title="Sembol metinden çıkarıldı, kaynak yapısal olarak vermedi">çıkarım</span>` : ""}
+          ${(i.tickers||[]).map(x=>`<span class="tick" data-t="${esc(x)}">${esc(x)}</span>`).join(" ")}
+          <span style="color:var(--muted)">${fmtTime(ts)}</span>
+        </div>
+      </div>`;}).join("");
+    if(newestTs && newestTs !== lastSeen){
+      localStorage.setItem("hhm_pending_seen", newestTs);
+    }
+    document.querySelectorAll(".tick").forEach(el =>
+      el.onclick = () => { $("#q").value = el.dataset.t; loadNews(); });
+  }catch(e){
+    $("#list").innerHTML = `<div class="empty err">API'ye ulaşılamadı.</div>`;
+  }
+}
+
+function refreshAll(){ loadHealth(); loadNews(); }
+
+$("#go").onclick = loadNews;
+$("#clear").onclick = () => { $("#q").value=""; loadNews(); };
+$("#refresh").onclick = refreshAll;
+$("#q").addEventListener("keydown", e => { if(e.key==="Enter") loadNews(); });
+
+document.querySelectorAll(".chip[data-kind]").forEach(c => c.onclick = () => {
+  document.querySelectorAll(".chip[data-kind]").forEach(x=>x.classList.remove("on"));
+  c.classList.add("on"); kindFilter = c.dataset.kind; loadNews();
+});
+
+$("#routinechip").onclick = function(){
+  hideRoutine = !hideRoutine;
+  this.textContent = hideRoutine ? "Rutin KAP: gizli" : "Rutin KAP: görünür";
+  this.classList.toggle("on", !hideRoutine);
+  loadNews();
+};
+
+// "Okundu" işaretle: sayfadan ayrılırken en yeni zaman damgası kaydedilir,
+// böylece bir sonraki açılışta ondan yenisi "yeni" rozetiyle gelir.
+window.addEventListener("beforeunload", () => {
+  const p = localStorage.getItem("hhm_pending_seen");
+  if(p) localStorage.setItem("hhm_last_seen", p);
+});
+
+$("#autochip").onclick = function(){
+  if(autoTimer){ clearInterval(autoTimer); autoTimer=null; this.textContent="Otomatik yenile: kapalı"; this.classList.remove("on"); }
+  else { autoTimer=setInterval(refreshAll, 60000); this.textContent="Otomatik yenile: 60 sn"; this.classList.add("on"); }
+};
+
+$("#dlgSave").onclick = saveDialog;
+$("#dlgCancel").onclick = () => $("#dlg").close();
+$("#dlgDelete").onclick = deleteDialog;
+$("#dlgName").addEventListener("keydown", e => { if(e.key==="Enter") saveDialog(); });
+
+loadUniverse(); loadWatchlists(); refreshAll();
+
+// Service worker: SADECE yuklenebilirlik icin. Onbellek YOK (bkz. sw.js).
+// localhost guvenli baglam sayildigi icin HTTPS olmadan da calisir.
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

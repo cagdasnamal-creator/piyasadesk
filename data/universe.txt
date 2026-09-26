@@ -1,0 +1,26 @@
+# SEMBOL EVRENI -- satir basina bir hisse kodu.
+#
+# !!! BU DOSYA SADECE BIR ORNEKTIR (12 sembol) !!!
+# Gercek kullanim icin PULSE'un tam evrenini kopyalayin:
+#
+#   bist_sinyal_botu/vendor_acceptance/full_universe_593.txt
+#       -> hisse_haber_merkezi/data/universe.txt
+#
+# Neden onemli: bu dosyada OLMAYAN bir sembol, RSS haberlerinde
+# TANINMAZ (fail-closed). 12 sembollu ornek evrenle calisirsan,
+# geri kalan 581 hissenin haberi hic eslesmez.
+#
+# KAP kayitlari bundan ETKILENMEZ -- sembolu yapisal alanda verir.
+
+ESCOM
+ARDYZ
+ATATP
+PCILT
+SAYAS
+GARAN
+AKBNK
+THYAO
+TUPRS
+BIMAS
+TCELL
+SASA
