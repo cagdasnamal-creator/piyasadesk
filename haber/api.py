@@ -59,6 +59,8 @@ def api_news(
     source_kind: Optional[str] = Query(None, description="REGULATORY / MEDIA / SOCIAL"),
     match: Optional[str] = Query(None, description="EXACT / INFERRED"),
     hide_routine: bool = Query(False, description="KAP rutin bildirimlerini gizle"),
+    hide_world: bool = Query(False, description="Sembolsuz genel/dunya medya haberlerini gizle"),
+    world_only: bool = Query(False, description="Yalnizca sembolsuz genel/dunya medya haberlerini getir"),
 ):
     """Haberleri dondurur.
 
@@ -112,6 +114,17 @@ def api_news(
         items = [i for i in items
                  if (i.extra or {}).get("kap_subject_class") != "ROUTINE"]
 
+    # "Dunya/genel" haber tanimi: medya kaydi olup hicbir BIST sembolune
+    # eslesmeyen haber. Varsayilan ana akis bunlari gizleyebilir; isteyen
+    # UI'daki "Dunya haberleri" filtresinden gorebilir.
+    def _is_world_item(i):
+        return i.source_kind == "MEDIA" and not (i.tickers or ())
+
+    if world_only:
+        items = [i for i in items if _is_world_item(i)]
+    elif hide_world:
+        items = [i for i in items if not _is_world_item(i)]
+
     items.sort(key=_sort_key, reverse=True)
     total = len(items)
     items = items[:limit]
@@ -120,7 +133,8 @@ def api_news(
         "contract_version": CONTRACT_VERSION,
         "query": {"ticker": ticker, "tickers": tickers, "limit": limit,
                   "source_kind": source_kind, "match": match,
-                  "hide_routine": hide_routine},
+                  "hide_routine": hide_routine,
+                  "hide_world": hide_world, "world_only": world_only},
         "applied_tickers": applied_tickers,
         "total_matched": total,
         "returned": len(items),

@@ -157,6 +157,7 @@
     <span class="chip on" data-kind="">Tüm kaynaklar</span>
     <span class="chip" data-kind="REGULATORY">Sadece KAP</span>
     <span class="chip" data-kind="MEDIA">Sadece medya</span>
+    <span class="chip" id="worldchip" title="BIST sembolüne eşleşmeyen genel/dünya medya haberlerini göster">Dünya haberleri</span>
     <span class="chip" id="routinechip" title="Rutin/teknik KAP bildirimlerini akışta göster veya gizle">Rutin KAP’ları göster</span>
     <span class="chip" id="autochip">Otomatik yenile: kapalı</span>
   </div>
@@ -183,6 +184,7 @@
 <script>
 const $ = s => document.querySelector(s);
 let kindFilter = "";
+let worldOnly = false;
 let autoTimer = null;
 let activeList = "";      // "" = tüm haberler
 let watchlists = {};
@@ -336,6 +338,8 @@ async function loadNews(){
   if(t) params.set("ticker", t);
   else if(activeList) params.set("tickers", (watchlists[activeList]||[]).join(","));
   if(kindFilter) params.set("source_kind", kindFilter);
+  if(worldOnly) params.set("world_only", "true");
+  else params.set("hide_world", "true");
   if(hideRoutine) params.set("hide_routine", "true");
   try{
     const r = await fetch("/api/news?"+params);
@@ -402,8 +406,20 @@ $("#q").addEventListener("keydown", e => { if(e.key==="Enter"){ setSearchMode("s
 
 document.querySelectorAll(".chip[data-kind]").forEach(c => c.onclick = () => {
   document.querySelectorAll(".chip[data-kind]").forEach(x=>x.classList.remove("on"));
-  c.classList.add("on"); kindFilter = c.dataset.kind; loadNews();
+  $("#worldchip").classList.remove("on");
+  worldOnly = false;
+  c.classList.add("on");
+  kindFilter = c.dataset.kind;
+  loadNews();
 });
+
+$("#worldchip").onclick = function(){
+  document.querySelectorAll(".chip[data-kind]").forEach(x=>x.classList.remove("on"));
+  this.classList.add("on");
+  kindFilter = "";
+  worldOnly = true;
+  loadNews();
+};
 
 $("#routinechip").onclick = function(){
   hideRoutine = !hideRoutine;
