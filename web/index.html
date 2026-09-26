@@ -148,6 +148,9 @@
   .badge.IMP-HIGH{color:#ff6262;border-color:#ff6262;font-weight:700}
   .tick{font-weight:600;color:var(--accent);cursor:pointer}
   .summary{color:var(--muted);margin-top:7px;font-size:13.5px}
+  .group-title{margin:18px 2px 8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .group-title:first-child{margin-top:4px}
+  .badge.DUP{color:var(--muted);border-color:var(--border)}
   .empty{color:var(--muted);text-align:center;padding:40px 10px}
   .err{color:var(--bad)}
   footer{margin-top:24px;color:var(--muted);font-size:12px;text-align:center}
@@ -208,6 +211,14 @@
         <option value="OTHER">Diğer</option>
       </select>
     </label>
+    <label class="filterbox" for="sortFilter">
+      <span>Sırala</span>
+      <select id="sortFilter">
+        <option value="latest">En yeni</option>
+        <option value="importance_desc">Önem: yüksekten</option>
+        <option value="importance_asc">Önem: düşükten</option>
+      </select>
+    </label>
     <span class="filter-note" title="Bu seviye fiyat yönü veya yatırım tavsiyesi değildir.">Önem = bilgi/maddilik sınıfı, yön tahmini değil.</span>
   </div>
 
@@ -236,6 +247,7 @@ let kindFilter = "";
 let worldOnly = false;
 let importanceFilter = "";
 let categoryFilter = "";
+let sortFilter = "latest";
 let autoTimer = null;
 let activeList = "";      // "" = tüm haberler
 let watchlists = {};
@@ -383,6 +395,26 @@ async function deleteDialog(){
   $("#dlg").close(); renderTabs(); loadNews();
 }
 
+function dateGroupLabel(iso){
+  if(!iso) return "Tarih yok";
+  const d = new Date(iso);
+  if(isNaN(d)) return "Tarih yok";
+  const now = new Date();
+  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((a-b)/86400000);
+  if(days===0) return "Bugün";
+  if(days===1) return "Dün";
+  return d.toLocaleDateString("tr-TR", {day:"2-digit", month:"long"});
+}
+
+function groupLabelForItem(i){
+  if(sortFilter.startsWith("importance")){
+    return (i.classification||{}).importance_label || "Diğer";
+  }
+  return dateGroupLabel(i.published_at || i.collected_at || "");
+}
+
 async function loadNews(){
   const t = $("#q").value.trim().toUpperCase();
   const params = new URLSearchParams({limit:"80"});
@@ -394,6 +426,8 @@ async function loadNews(){
   if(hideRoutine) params.set("hide_routine", "true");
   if(importanceFilter) params.set("importance", importanceFilter);
   if(categoryFilter) params.set("category", categoryFilter);
+  params.set("sort", sortFilter);
+  params.set("dedupe", "true");
   try{
     const r = await fetch("/api/news?"+params);
     const d = await r.json();
@@ -406,20 +440,30 @@ async function loadNews(){
       return;
     }
     let newestTs = lastSeen;
-    $("#list").innerHTML = d.items.map(i => {
+    let html = "";
+    let lastGroup = null;
+    d.items.forEach(i => {
+      const group = groupLabelForItem(i);
+      if(group !== lastGroup){
+        html += `<div class="group-title">${esc(group)}</div>`;
+        lastGroup = group;
+      }
       const ts = i.published_at || i.collected_at || "";
       const isNew = lastSeen && ts > lastSeen;
       if(ts > newestTs) newestTs = ts;
       const routine = (i.extra||{}).kap_subject_class === "ROUTINE";
       const cls = i.classification || {};
       const reasonTitle = (cls.reasons||[]).join(" • ");
-      return `
+      const dupCount = Number(i.duplicate_count||1);
+      const dupSources = (i.duplicate_sources||[]).join(", ");
+      html += `
       <div class="item${isNew?" unseen":""}">
         <a class="title" href="${esc(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
         ${i.summary ? `<div class="summary">${esc(i.summary)}</div>` : ""}
         <div class="meta">
           ${isNew ? `<span class="badge yeni">yeni</span>` : ""}
           <span class="badge ${esc(i.source_kind)} src-${esc(i.source_id)}">${esc(i.source_id)}</span>
+          ${dupCount>1 ? `<span class="badge DUP" title="${esc(dupSources)}">${dupCount} kaynak</span>` : ""}
           ${cls.importance_label ? `<span class="badge IMP-${esc(cls.importance_level)}" title="${esc(reasonTitle)}">${esc(cls.importance_label)}</span>` : ""}
           ${cls.category_label ? `<span class="badge CATEGORY">${esc(cls.category_label)}</span>` : ""}
           ${routine ? `<span class="badge ROUTINE" title="Rutin/teknik bildirim türü">rutin KAP</span>` : ""}
@@ -427,7 +471,9 @@ async function loadNews(){
           ${(i.tickers||[]).map(x=>`<span class="tick" data-t="${esc(x)}">${esc(x)}</span>`).join(" ")}
           <span style="color:var(--muted)">${fmtTime(ts)}</span>
         </div>
-      </div>`;}).join("");
+      </div>`;
+    });
+    $("#list").innerHTML = html;
     if(newestTs && newestTs !== lastSeen){
       localStorage.setItem("hhm_pending_seen", newestTs);
     }
@@ -492,6 +538,11 @@ $("#importanceFilter").onchange = function(){
 
 $("#categoryFilter").onchange = function(){
   categoryFilter = this.value;
+  loadNews();
+};
+
+$("#sortFilter").onchange = function(){
+  sortFilter = this.value || "latest";
   loadNews();
 };
 

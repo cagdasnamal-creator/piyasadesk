@@ -971,3 +971,19 @@ def test_taxonomy_does_not_mutate_news_contract_fields():
     before = it.to_dict()
     classify(it)
     assert it.to_dict() == before
+
+
+def test_matcher_v2_mixed_case_city_and_person_are_not_tickers():
+    from haber.tickers import extract_tickers
+    uni = {"USAK", "YIGIT", "ESCOM"}
+    assert extract_tickers("Uşak için meteorolojik uyarı", uni) == ()
+    assert extract_tickers("Yiğit işe giderken kaza geçirdi", uni) == ()
+    assert extract_tickers("ESCOM yeni sözleşme imzaladı", uni) == ("ESCOM",)
+
+
+def test_alias_word_boundary_prevents_substring_false_positive():
+    from haber.tickers import extract_tickers_with_aliases
+    uni = {"THYAO"}
+    aliases = {"thy": "THYAO"}
+    assert extract_tickers_with_aliases("healthy growth beklentisi", uni, aliases) == ()
+    assert extract_tickers_with_aliases("THY yolcu sayısını açıkladı", uni, aliases) == ("THYAO",)

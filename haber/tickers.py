@@ -43,7 +43,7 @@ def load_universe(path: str | os.PathLike | None = None) -> set[str]:
     return out
 
 
-_TOKEN_RE = re.compile(r"\b[A-ZÇĞİÖŞÜ0-9]{3,6}\b")
+_TOKEN_RE = re.compile(r"\b[A-Z0-9]{3,6}\b")
 
 
 def extract_tickers(text: str, universe: set[str]) -> tuple[str, ...]:
@@ -60,10 +60,14 @@ def extract_tickers(text: str, universe: set[str]) -> tuple[str, ...]:
     if not universe or not text:
         return ()
 
-    trans = str.maketrans("ÇĞİÖŞÜ", "CGIOSU")
+    # Matcher v2: tokenleri metni komple upper() yaparak aramak YASAK.
+    # Aksi halde kisi/sehir adlari ticker'a donusebilir:
+    #   "Yiğit" -> YIGIT, "Uşak" -> USAK.
+    # Dogrudan sembol eslesmesi icin token kaynak metinde zaten buyuk
+    # harfli/ASCII ticker biciminde yazilmis olmali (ESCOM, THYAO vb.).
     found = []
-    for tok in _TOKEN_RE.findall(text.upper()):
-        norm = tok.translate(trans)
+    for tok in _TOKEN_RE.findall(text):
+        norm = tok.upper()
         if norm in STOPWORDS:
             continue
         if norm in universe and norm not in found:
@@ -136,6 +140,10 @@ def extract_tickers_with_aliases(text: str, universe: set[str],
             continue
         if ticker not in universe:
             continue
-        if name in hay:
+        # Alias substring degil, kelime/ifade sinirinda eslesir. Bu;
+        # "thy" gibi kisa aliaslarin baska bir kelimenin icinde
+        # yanlis eslesmesini engeller.
+        pat = r"(?<![a-z0-9])" + re.escape(name) + r"(?![a-z0-9])"
+        if re.search(pat, hay):
             found.append(ticker)
     return tuple(found)

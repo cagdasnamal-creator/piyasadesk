@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
+import re
+import unicodedata
 
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, JSONResponse
@@ -33,6 +35,20 @@ app = FastAPI(title="PiyasaDesk", version="1.1")
 def _sort_key(item):
     """En yeni once. published_at yoksa collected_at'e duser."""
     return item.published_at or item.collected_at or ""
+
+
+def _dedupe_title(text: str) -> str:
+    """Ayni medya basligini kaynaklar arasi guvenli sekilde gruplamak icin
+    muhafazakar normalizasyon. Benzer ama farkli haberleri birlestirmez."""
+    x = (text or "").casefold().replace("ı", "i")
+    x = unicodedata.normalize("NFKD", x)
+    x = "".join(ch for ch in x if not unicodedata.combining(ch))
+    x = re.sub(r"[^a-z0-9]+", " ", x)
+    return re.sub(r"\s+", " ", x).strip()
+
+
+def _importance_rank(level: str) -> int:
+    return {"HIGH": 4, "IMPORTANT": 3, "NOTICE": 2, "LOW": 1}.get(level, 0)
 
 
 @app.get("/api/health")
@@ -64,6 +80,8 @@ def api_news(
     world_only: bool = Query(False, description="Yalnizca sembolsuz genel/dunya medya haberlerini getir"),
     category: Optional[str] = Query(None, description="Turetilmis haber kategorisi"),
     importance: Optional[str] = Query(None, description="LOW / NOTICE / IMPORTANT / HIGH"),
+    sort: str = Query("latest", description="latest / importance_desc / importance_asc"),
+    dedupe: bool = Query(True, description="Ayni medya basliklarini kaynaklar arasi grupla"),
 ):
     """Haberleri dondurur.
 
@@ -138,14 +156,50 @@ def api_news(
         imp = importance.strip().upper()
         enriched = [(i, c) for i, c in enriched if c.importance_level == imp]
 
-    enriched.sort(key=lambda pair: _sort_key(pair[0]), reverse=True)
-    total = len(enriched)
-    enriched = enriched[:limit]
+    sort_mode = (sort or "latest").strip().lower()
+    if sort_mode == "importance_desc":
+        enriched.sort(key=lambda pair: (_importance_rank(pair[1].importance_level), pair[1].importance_points, _sort_key(pair[0])), reverse=True)
+    elif sort_mode == "importance_asc":
+        enriched.sort(key=lambda pair: (_importance_rank(pair[1].importance_level), pair[1].importance_points, _sort_key(pair[0])))
+    else:
+        sort_mode = "latest"
+        enriched.sort(key=lambda pair: _sort_key(pair[0]), reverse=True)
+
+    # Kaynaklar arasi ayni MEDIA basligi tek kartta toplanir. KAP kayitlari
+    # resmi belge oldugu icin ASLA medya ile birlestirilmez. Baslik
+    # normalizasyonu muhafazakardir: sadece birebir normalize baslik + ayni
+    # ticker seti gruplanir; semantik/AI benzerligi kullanilmaz.
+    grouped = []
+    seen = {}
+    if dedupe:
+        for item, cls in enriched:
+            if item.source_kind == "MEDIA":
+                key = (item.source_kind, _dedupe_title(item.title), tuple(sorted(item.tickers or ())))
+            else:
+                key = None
+            if key and key in seen:
+                g = seen[key]
+                g["duplicate_count"] += 1
+                if item.source_id not in g["duplicate_sources"]:
+                    g["duplicate_sources"].append(item.source_id)
+                continue
+            rec = {"item": item, "cls": cls, "duplicate_count": 1, "duplicate_sources": [item.source_id]}
+            grouped.append(rec)
+            if key:
+                seen[key] = rec
+    else:
+        grouped = [{"item": i, "cls": c, "duplicate_count": 1, "duplicate_sources": [i.source_id]} for i, c in enriched]
+
+    total = len(grouped)
+    grouped = grouped[:limit]
 
     out_items = []
-    for item, cls in enriched:
+    for rec in grouped:
+        item, cls = rec["item"], rec["cls"]
         d = item.to_dict()
         d["classification"] = cls.to_dict()
+        d["duplicate_count"] = rec["duplicate_count"]
+        d["duplicate_sources"] = rec["duplicate_sources"]
         out_items.append(d)
 
     return {
@@ -154,7 +208,8 @@ def api_news(
                   "source_kind": source_kind, "match": match,
                   "hide_routine": hide_routine,
                   "hide_world": hide_world, "world_only": world_only,
-                  "category": category, "importance": importance},
+                  "category": category, "importance": importance,
+                  "sort": sort_mode, "dedupe": dedupe},
         "applied_tickers": applied_tickers,
         "total_matched": total,
         "returned": len(out_items),
